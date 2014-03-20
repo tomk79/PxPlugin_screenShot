@@ -33,13 +33,18 @@
 		height: options.height
 	};
 	webpage.settings.userAgent = options.userAgent;
+	webpage.paperSize = {
+		format: 'A3',
+		orientation: 'portrait',
+		border: '1cm'
+	};
 	webpage.onLoadFinished = function() {
 		console.log('page Load Finished.');
 	};
 	webpage.open(options.url, function(status) {
 		if (status === 'success') {
 			window.setTimeout( function(){
-				if( webpage.render( options.saveTo ) ){
+				if( webpage.render( options.saveTo ) ){//←保存先パスの拡張子が *.pdf であれば
 					console.log('Success!');
 				}else{
 					console.log('Error: Disable to save image file.');
