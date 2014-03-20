@@ -15,7 +15,7 @@ class pxplugin_screenShot_register_pxcommand extends px_bases_pxcommand{
 		parent::__construct( $command , $px );
 		$command = $this->get_command();
 
-		$this->path_plugin_data_dir = $this->px->realpath_plugin_ramdata_dir('screenShot');
+		$this->path_plugin_data_dir = $this->px->realpath_plugin_private_cache_dir('screenShot');
 
 		switch( $command[2] ){
 			case 'run':
