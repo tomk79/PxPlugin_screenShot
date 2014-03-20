@@ -168,7 +168,7 @@ class pxplugin_screenShot_register_pxcommand extends px_bases_pxcommand{
 			$html_src .= '<tr>'."\n";
 			foreach( $this->get_device_list() as $device_info ){
 				print '    '.$device_info['width'].' ...';
-				$cmd = $this->mk_cmd_screenshot( $url, $path_plugin_data_dir.'img/'.md5($url).'_'.$device_info['width'].'.png', $device_info['width'], 100, $device_info['ua'] );
+				$cmd = $this->mk_cmd_screenshot( $url, $path_plugin_data_dir.'img/'.md5($url).'_'.$device_info['width'].'.png', $device_info['width'], 600, $device_info['ua'] );
 				$result = $this->px->dbh()->get_cmd_stdout( $cmd );
 				$html_src .= '<td><img src="?PX=plugins.screenShot.data_preview&path=img/'.md5($url).'_'.$device_info['width'].'.png" alt="" /></td>'."\n";
 				print ' done.'."\n";
