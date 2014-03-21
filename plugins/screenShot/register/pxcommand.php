@@ -6,7 +6,10 @@ $this->load_px_class('/bases/pxcommand.php');
  */
 class pxplugin_screenShot_register_pxcommand extends px_bases_pxcommand{
 
+	private $path_plugin_conf_dir;
 	private $path_plugin_data_dir;
+	private $target_path_list = array();
+	private $target_device_list = array();
 
 	/**
 	 * コンストラクタ
@@ -15,7 +18,11 @@ class pxplugin_screenShot_register_pxcommand extends px_bases_pxcommand{
 		parent::__construct( $command , $px );
 		$command = $this->get_command();
 
+		$this->path_plugin_conf_dir = $this->px->realpath_plugin_ramdata_dir('screenShot');
 		$this->path_plugin_data_dir = $this->px->realpath_plugin_private_cache_dir('screenShot');
+
+		$this->target_path_list = $this->load_target_path_list();
+		$this->target_device_list = $this->load_target_device_list();
 
 		switch( $command[2] ){
 			case 'run':
@@ -23,6 +30,9 @@ class pxplugin_screenShot_register_pxcommand extends px_bases_pxcommand{
 				break;
 			case 'data_preview':
 				$this->page_data_preview();
+				break;
+			case 'save_config':
+				$this->page_save_config();
 				break;
 			default:
 				$this->page_homepage();
@@ -36,23 +46,101 @@ class pxplugin_screenShot_register_pxcommand extends px_bases_pxcommand{
 	private function page_homepage(){
 		$command = $this->get_command();
 		$src = '';
-		$src .= '<div class="unit">'."\n";
-		$src .= '	<p>プロジェクト『'.t::h($this->px->get_conf('project.name')).'』のページのスクリーンショットを作成します。</p>'."\n";
-		$src .= '	<p>この機能は、コマンドラインから実行します。MacOSX上で動作します。Windowsでは使えません。</p>'."\n";
-		$src .= '</div><!-- /.unit -->'."\n";
-
-		$src .= '<div class="unit">'."\n";
-		$src .= '   <p>screenShotは、次のコマンドから実行します。このコマンドは、<strong>この Pickles Framework が動作しているサーバー上で直接動作する</strong>ように設計されています。</p>'."\n";
-		$src .= '	<div class="code"><textarea readonly="readonly">php '.t::h($_SERVER['SCRIPT_FILENAME']).' PX=plugins.screenShot.run url_base='.t::h('http'.($this->px->req()->is_ssl()?'s':'').'://'.$_SERVER['HTTP_HOST'].$this->px->theme()->href('/')).'</textarea></div>'."\n";
-		$src .= '</div>'."\n";
-		$src .= ''."\n";
 		ob_start(); ?>
-<p>コマンドの処理が完了したら、<a href="?PX=plugins.screenShot.data_preview&amp;path=print.pdf" target="_blank">PDFファイルを入手</a>できます。</p>
+
+<div class="unit">
+	<p>プロジェクト『<?php print t::h($this->px->get_conf('project.name')); ?>』のページのスクリーンショットを作成します。</p>
+	<p>この機能は、コマンドラインから実行します。MacOSX上で動作します。Windowsでは使えません。</p>
+</div><!-- /.unit -->
+
+<h2>Step 1 : サーバーに phantomjs をインストールする</h2>
+<p>次のコマンドを実行して、サーバーに phantomjs をインストールしてください。</p>
+
+<div class="unit">
+	<div class="code"><pre><code>$ npm install phantomjs
+</code></pre></div>
+</div>
+
+
+<h2>Step 2 : デバイスの定義と対象のページを指定する</h2>
+<div class="unit">
+	<form action="?" method="post">
+	<p>
+		対象のデバイスについての情報を設定してください。<br />
+		1行に1デバイスの情報を設定します。デバイスは「画面幅(数字):ユーザーエージェント名」の書式で表現します。<br />
+	</p>
+	<p><textarea name="target_device_list" style="width:100%; height:10em;"><?php print t::h( $this->get_device_list_string() ); ?></textarea></p>
+	<p>
+		次に、スクリーンショットを撮りたい対象のパスを指定してください。<br />
+		この欄を空白に設定すると、サイトマップに定義されたすべてのページが対象になります。<br />
+	</p>
+	<p><textarea name="target_paths" style="width:100%; height:10em;"><?php print t::h( implode("\n",$this->target_path_list) ); ?></textarea></p>
+	<p>
+		それぞれ入力欄に指定したら、「保存する」ボタンをクリックします。<br />
+	</p>
+	<p class="center"><button style="width:100%;">保存する</button></p>
+	<div>
+		<input type="hidden" name="PX" value="plugins.screenShot.save_config" />
+		<input type="hidden" name="mode" value="execute" />
+	</div>
+	</form>
+</div>
+
+<h2>Step 3 : コマンドを実行する</h2>
+<p>screenShotは、次のコマンドから実行します。このコマンドは、<strong>この Pickles Framework が動作しているサーバー上で直接動作する</strong>ように設計されています。</p>
+<div class="code"><textarea readonly="readonly">php <?php print t::h($_SERVER['SCRIPT_FILENAME']).' PX=plugins.screenShot.run url_base='.t::h('http'.($this->px->req()->is_ssl()?'s':'').'://'.$_SERVER['HTTP_HOST'].$this->px->theme()->href('/')); ?></textarea></div>
+
+<h2>Step 4 : 完成されたPDFをダウンロードする</h2>
+<p>
+	コマンドの処理が完了したら、<a href="?PX=plugins.screenShot.data_preview&amp;path=print.pdf" target="_blank">PDFファイルを入手</a>できます。<br />
+</p>
+
 <?php
 		$src .= ob_get_clean();
 
 		print $this->html_template($src);
 		exit;
+	}
+
+	/**
+	 * 対象のパスの一覧をロードする
+	 */
+	private function load_target_path_list(){
+		if( !is_file($this->path_plugin_conf_dir.'targetlist.txt') || !is_readable($this->path_plugin_conf_dir.'targetlist.txt') ){
+			return array();
+		}
+		$list = file( $this->path_plugin_conf_dir.'targetlist.txt' );
+		$rtn = array();
+		foreach( $list as $row ){
+			$row = trim($row);
+			if( !strlen($row) ){continue;}
+			array_push( $rtn, $row );
+		}
+		return $rtn;
+	}
+
+	/**
+	 * 対象のデバイスの一覧をロードする
+	 */
+	private function load_target_device_list(){
+		if( !is_file($this->path_plugin_conf_dir.'devicelist.txt') || !is_readable($this->path_plugin_conf_dir.'devicelist.txt') ){
+			return array();
+		}
+		$list = file( $this->path_plugin_conf_dir.'devicelist.txt' );
+		$rtn = array();
+		foreach( $list as $row ){
+			$row = trim($row);
+			if( !strlen($row) ){continue;}
+			$tmp = explode(':',$row);
+			array_push( $rtn, array('width'=>intval(trim($tmp[0])),'ua'=>trim($tmp[1])) );
+		}
+/*
+		$rtn = array();
+		array_push( $rtn, array('width'=>1024,'ua'=>'GoogleChrome') );
+		// array_push( $rtn, array('width'=>800,'ua'=>'iPad') );
+		array_push( $rtn, array('width'=>320,'ua'=>'iPhone') );
+*/
+		return $rtn;
 	}
 
 	/**
@@ -109,6 +197,25 @@ class pxplugin_screenShot_register_pxcommand extends px_bases_pxcommand{
 	 * @access private
 	 * @return null
 	 */
+	private function page_save_config(){
+		if( $this->px->req()->get_param('mode') == 'execute' ){
+			if( !$this->px->dbh()->file_overwrite( $this->path_plugin_conf_dir.'targetlist.txt', $this->px->req()->get_param('target_paths') ) ){
+				print $this->html_template('<p class="error">失敗しました。</p>');
+				exit;
+			}
+			if( !$this->px->dbh()->file_overwrite( $this->path_plugin_conf_dir.'devicelist.txt', $this->px->req()->get_param('target_device_list') ) ){
+				print $this->html_template('<p class="error">失敗しました。</p>');
+				exit;
+			}
+		}
+		return $this->px->redirect('?PX=plugins.screenShot');
+	}
+
+	/**
+	 * Execute PX Command "publish".
+	 * @access private
+	 * @return null
+	 */
 	private function execute(){
 		$command = $this->get_command();
 		while( ob_end_clean() );
@@ -140,9 +247,16 @@ class pxplugin_screenShot_register_pxcommand extends px_bases_pxcommand{
 
 		$page_list = $this->get_target_pages();
 		foreach( $page_list as $row ){
-			$page_info = $this->px->site()->get_page_info( $row );
-			$url = $url_base.$this->px->theme()->href( $page_info['id'] );
+			$url = $url_base.$this->px->theme()->href( $row );
 			print '* '.$url."\n";
+			$page_info = $this->px->site()->get_page_info( $row );
+			if( is_null($page_info) ){
+				print '  [ERROR] undefined page.'."\n";
+				$page_info = array();
+				$page_info['id'] = $row;
+				$page_info['path'] = $row;
+				$page_info['title'] = 'undefined page';
+			}
 
 			$html_src = '';
 			$html_src .= '<!-- '.t::text2html($url).' -->'."\n";
@@ -259,10 +373,24 @@ img{
 	 * 端末情報の一覧を取得
 	 */
 	private function get_device_list(){
+		if( is_array($this->target_device_list) && count($this->target_device_list) ){
+			return $this->target_device_list;
+		}
 		$rtn = array();
 		array_push( $rtn, array('width'=>1024,'ua'=>'GoogleChrome') );
 		// array_push( $rtn, array('width'=>800,'ua'=>'iPad') );
 		array_push( $rtn, array('width'=>320,'ua'=>'iPhone') );
+		return $rtn;
+	}
+	/**
+	 * 端末情報の一覧を文字列で取得
+	 */
+	private function get_device_list_string(){
+		$device_list = $this->get_device_list();
+		$rtn = '';
+		foreach( $device_list as $row ){
+			$rtn .= $row['width'].':'.$row['ua']."\n";
+		}
 		return $rtn;
 	}
 
@@ -270,19 +398,17 @@ img{
 	 * 対象ページの一覧を作成
 	 */
 	private function get_target_pages(){
+		if( is_array($this->target_path_list) && count($this->target_path_list) ){
+			// 指定があったらそれを使用
+			return $this->target_path_list;
+		}
+
 		$sitemap = $this->px->site()->get_sitemap();
 		$rtn = array();
 		foreach( $sitemap as $page_info ){
 			array_push( $rtn, $page_info['path'] );
 		}
-/*
-$rtn = array(
-	'/',
-	'/setup/',
-	'/manual/classes/',
-	'/manual/classes/px_cores_dbh/',
-);//debug
-*/		return $rtn;
+		return $rtn;
 	}
 
 	/**
