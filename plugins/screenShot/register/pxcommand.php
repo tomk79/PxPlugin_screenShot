@@ -69,7 +69,7 @@ class pxplugin_screenShot_register_pxcommand extends px_bases_pxcommand{
 		対象のデバイスについての情報を設定してください。<br />
 		1行に1デバイスの情報を設定します。デバイスは「画面幅(数字):ユーザーエージェント名」の書式で表現します。<br />
 	</p>
-	<p><textarea name="target_device_list" style="width:100%; height:10em;"><?php print t::h( $this->get_device_list_string() ); ?></textarea></p>
+	<p><textarea name="target_device_list" style="width:100%; height:5em;"><?php print t::h( $this->get_device_list_string() ); ?></textarea></p>
 	<p>
 		次に、スクリーンショットを撮りたい対象のパスを指定してください。<br />
 		この欄を空白に設定すると、サイトマップに定義されたすべてのページが対象になります。<br />
@@ -249,11 +249,16 @@ class pxplugin_screenShot_register_pxcommand extends px_bases_pxcommand{
 		foreach( $page_list as $row ){
 			$url = $url_base.$this->px->theme()->href( $row );
 			print '* '.$url."\n";
-			$page_info = $this->px->site()->get_page_info( $row );
+			$page_info = null;
+			if( preg_match( '/^https?\:\/\//s', $row ) ){
+				$url = $row;
+			}else{
+				$page_info = $this->px->site()->get_page_info( $row );
+			}
 			if( is_null($page_info) ){
 				print '  [ERROR] undefined page.'."\n";
 				$page_info = array();
-				$page_info['id'] = $row;
+				$page_info['id'] = '---';
 				$page_info['path'] = $row;
 				$page_info['title'] = 'undefined page';
 			}
@@ -378,7 +383,6 @@ img{
 		}
 		$rtn = array();
 		array_push( $rtn, array('width'=>1024,'ua'=>'GoogleChrome') );
-		// array_push( $rtn, array('width'=>800,'ua'=>'iPad') );
 		array_push( $rtn, array('width'=>320,'ua'=>'iPhone') );
 		return $rtn;
 	}
